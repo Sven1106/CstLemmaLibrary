@@ -15,18 +15,36 @@ namespace CstLemmaLibrary
     {
         public static Dictionary<string, List<string>> GetLemmasByTextDictionary(List<string> texts)
         {
+            var bla = Assembly.GetEntryAssembly().GetManifestResourceNames();
             Guid tempGuid = Guid.NewGuid();
+
             string currentDirectory = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location); // nifty way of getting the correct working directory
+
             string fullTempFolder = Path.Combine(currentDirectory, tempGuid.ToString());
 
             string fullFlexFilePath = Path.Combine(currentDirectory, "flexrules");
+            File.WriteAllBytes(fullFlexFilePath, Properties.Resources.flexrules);
+
             string fullDictFilePath = Path.Combine(currentDirectory, "dict");
+            File.WriteAllBytes(fullDictFilePath, Properties.Resources.dict);
 
             Directory.CreateDirectory(fullTempFolder);
             string inputFileName = "input.txt";
             string fullInputFilePath = Path.Combine(fullTempFolder, inputFileName);
             File.AppendAllLines(fullInputFilePath, texts);
+            string cstlemmaFile;
+            if (Environment.Is64BitProcess)
+            {
+                cstlemmaFile = Path.Combine(currentDirectory, "cstlemma64.exe");
+                File.WriteAllBytes(cstlemmaFile, Properties.Resources.cstlemma64);
+            }
+            else
+            {
+                cstlemmaFile = Path.Combine(currentDirectory, "cstlemma.exe");
+                File.WriteAllBytes(cstlemmaFile, Properties.Resources.cstlemma);
+            }
 
+            //File.WriteAllBytes(fileName, Properties.Resources.file);
 
             string outputFileName = "output.txt";
             string fullOutFilePath = Path.Combine(fullTempFolder, outputFileName);
@@ -34,14 +52,9 @@ namespace CstLemmaLibrary
             string outputMessage;
             using (Process process = new Process())
             {
-                if (Environment.Is64BitProcess)
-                {
-                    process.StartInfo.FileName = Path.Combine(currentDirectory, "cstlemma64.exe");
-                }
-                else
-                {
-                    process.StartInfo.FileName = Path.Combine(currentDirectory, "cstlemma.exe");
-                }
+
+                process.StartInfo.FileName = cstlemmaFile;
+
                 process.StartInfo.Arguments = @"-L -eU -p- -q- -t- -f " + fullFlexFilePath + " -l -d " + fullDictFilePath + @" -b""$w"" -B""$w"" -c""\[[$b$b?]>0[$B$b0]\]$s"" -u -i " + fullInputFilePath + " -o " + fullOutFilePath;
                 process.StartInfo.UseShellExecute = false;
                 process.StartInfo.RedirectStandardOutput = true;
@@ -70,6 +83,16 @@ namespace CstLemmaLibrary
             }
 
             return lemmasByText;
+        }
+        public static void WriteResourceToFile(string resourceName, string fileName)
+        {
+            using (var resource = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName))
+            {
+                using (var file = new FileStream(fileName, FileMode.Create, FileAccess.Write))
+                {
+                    resource.CopyTo(file);
+                }
+            }
         }
     }
 }
